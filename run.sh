@@ -1,8 +1,6 @@
 #!/bin/bash
 
-if [ ! $PASSWORD ]
-  then export PASSWORD="changeme"
-fi
+nginx
+uwsgi --master --die-on-term --emperor /etc/uwsgi --logto /var/log/uwsgi/uwsgi.log &
 
-cd /usr/local/web2py/
-su - www-data -s /bin/bash -c "cd /usr/local/web2py/ && python web2py.py -a $PASSWORD"
+tail -f /var/log/nginx/access.log /var/log/nginx/error.log /var/log/uwsgi/uwsgi.log
