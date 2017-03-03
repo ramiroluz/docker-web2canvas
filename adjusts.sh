@@ -16,14 +16,6 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-# Get Web2py Admin Password
-if [ "$nopassword" -eq 0 ]
-then
-  echo -e "Web2py Admin Password: \c "
-  read -s PW
-  printf "\n"  # fix no new line artifact of "read -s" to avoid cleartext password
-fi
-
 # Create common nginx sections
 mkdir /etc/nginx/conf.d/web2py
 echo '
@@ -131,29 +123,9 @@ fi
 mkdir /etc/uwsgi
 mkdir /var/log/uwsgi
 
-#uWSGI Emperor
-echo '
-[Unit]
-Description = uWSGI Emperor
-After = syslog.target
-
-[Service]
-ExecStart = /usr/local/bin/uwsgi --ini /etc/uwsgi/web2py.ini
-RuntimeDirectory = uwsgi
-Restart = always
-KillSignal = SIGQUIT
-Type = notify
-StandardError = syslog
-NotifyAccess = all
-
-[Install]
-WantedBy = multi-user.target
-' > /etc/systemd/system/emperor.uwsgi.service
-
 # Create configuration file /etc/uwsgi/web2py.ini
 echo '
 [uwsgi]
-
 socket = /tmp/web2py.socket
 pythonpath = /usr/local/web2py/
 mount = /=wsgihandler:application
@@ -173,88 +145,3 @@ touch-reload = /usr/local/web2py/routes.py
 cron = 0 0 -1 -1 -1 python /usr/local/web2py/web2py.py -Q -S welcome -M -R scripts/sessions2trash.py -A -o
 no-orphans = true
 ' > /etc/uwsgi/web2py.ini
-
-#Create a configuration file for uwsgi in emperor-mode
-#for Upstart in /etc/init/uwsgi-emperor.conf
-echo '
-description "uWSGI Emperor"
-start on runlevel [2345]
-stop on runlevel [06]
-##
-#remove the comments in the next section to enable static file compression for the welcome app
-#in that case, turn on gzip_static on; on /etc/nginx/nginx.conf
-##
-#pre-start script
-#    python /usr/local/web2py/web2py.py -S welcome -R scripts/zip_static_files.py
-#    chown -R www-data:www-data /usr/local/web2py/*
-#end script
-respawn
-exec uwsgi --master --die-on-term --emperor /etc/uwsgi --logto /var/log/uwsgi/uwsgi.log
-' > /etc/init/uwsgi-emperor.conf
-
-# Install Web2py
-chown -R www-data:www-data /usr/local/web2py
-cd /usr/local/web2py
-if [ "$nopassword" -eq 0 ]
-then
-su - www-data python -c "from gluon.main import save_password; save_password('$PW',443)"
-fi
-
-/etc/init.d/nginx start
-systemctl start emperor.uwsgi.service
-systemctl enable emperor.uwsgi.service
-
-echo <<EOF
-you can stop uwsgi and nginx with
-
-sudo /etc/init.d/nginx stop
-sudo systemctl start emperor.uwsgi.service
-
-and start it with
-
-sudo /etc/init.d/nginx start
-systemctl start emperor.uwsgi.service
-
-EOF
-
-#Create a configuration file for uwsgi in emperor-mode
-#for Upstart in /etc/init/uwsgi-emperor.conf
-echo '
-# Emperor uWSGI script
-description "uWSGI Emperor"
-start on runlevel [2345]
-stop on runlevel [06]
-##
-#remove the comments in the next section to enable static file compression for the welcome app
-#in that case, turn on gzip_static on; on /etc/nginx/nginx.conf
-##
-#pre-start script
-#    python /usr/local/web2py/web2py.py -S welcome -R scripts/zip_static_files.py
-#    chown -R www-data:www-data /usr/local/web2py/*
-#end script
-respawn
-exec uwsgi --master --die-on-term --emperor /etc/uwsgi --logto /var/log/uwsgi/uwsgi.log
-' > /etc/init/uwsgi-emperor.conf
-# Install Web2py
-cd /usr/local/web2py
-if [ "$nopassword" -eq 0 ]
-then
-   su - www-data python -c "from gluon.main import save_password; save_password('$PW',443)"
-fi
-
-/etc/init.d/nginx start
-systemctl start emperor.uwsgi.service
-systemctl enable emperor.uwsgi.service
-
-echo <<EOF
-you can stop uwsgi and nginx with
-
-  sudo /etc/init.d/nginx stop
-  sudo systemctl start emperor.uwsgi.service
-
-and start it with
-
-  sudo /etc/init.d/nginx start
-  systemctl start emperor.uwsgi.service
-
-EOF
