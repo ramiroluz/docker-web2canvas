@@ -18,8 +18,15 @@ To install docker in other operating systems check [docker online documentation]
 
 To run container use the command below:
 ```
-$ docker run --name web2canvas -p 80:8000 -d filhocf/web2canvas
+$ docker run --name web2canvas -p 80:80 -d filhocf/web2canvas
 ```
+
+The -p option of docker accepts two port numbers. The first one is the host (your machine) port, the second is the container (docker machine) port. So if you are running a webserver in your machine (host) on port 80 you can change the host port to something different, for example:
+```
+$ docker run --name web2canvas -p 81:80 -d filhocf/web2canvas
+```
+
+Both commands are fowarding the host port number 80 or 81 to the port 80 of the nginx server in the container (docker machine).
 
 ## More Info
 
